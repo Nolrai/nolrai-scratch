@@ -1,20 +1,74 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Shapes where
 
 import Linear.V2
-import Data.Strict.List.NonEmpty
-import Text.Megaparsec
-import Numeric.Matrix
+import Linear.V3
+import Data.List.NonEmpty hiding (transpose)
+import Data.List hiding (transpose)
+import Linear.Matrix
+import Data.Aeson
+import Control.Lens ((^.))
+import GHC.Generics (Generic)
 
 data Path time space = Path {trail :: NonEmpty (V2 space) , water :: time}
+  deriving (Generic)
+
+instance ToJSON a => ToJSON (V2 a) where
+instance FromJSON a => FromJSON (V2 a) where
+
+instance ToJSON a => ToJSON (V3 a) where
+instance FromJSON a => FromJSON (V3 a) where
+
+
+instance (ToJSON a, ToJSON b) => ToJSON (Path a b) where
+  toEncoding :: Path a b-> Encoding
+  toEncoding = genericToEncoding defaultOptions
+
+instance (FromJSON a, FromJSON b) => FromJSON (Path a b) where
 
 instance Functor (Path time) where
-  fmap f Path{..} = Path {trail = f <$> trail, water = water}
+  fmap f Path{..} = Path {trail = (f <$>) <$> trail, water = water}
 
-type Triangle = (V2 Double, V2 Double, V2 Double)
+type Triangle = V3 (V2 Double)
 
-triangleToMatrix :: Triangle -> Matrix
-triangleToMatrix (a, b, c) = fromList 
-  [[f v | v <- [a, b, c]] | f <- [(^. _x), (^. _y), const 1]]
+v2ToV3 :: V2 Double -> V3 Double
+v2ToV3 (V2 x y) = V3 x y 1 
 
-toAffine' :: Triangle Double -> Triangle Double -> Matrix Double
-toAffine' dom cod = triangleToMatrix cod * inv (triangleToMatrix dom)
+triangleToMatrix :: Triangle -> M33 Double
+triangleToMatrix t = transpose (v2ToV3 <$> t)
+
+toAffine' :: Triangle -> Triangle -> M33 Double
+toAffine' dom cod = triangleToMatrix cod * inv33 (triangleToMatrix dom)
+
+toAffine :: Triangle -> Triangle -> V2 Double -> V2 Double
+toAffine dom cod = \ p -> (m !* v2ToV3 p) ^. _xy
+  where
+  m = toAffine' dom cod
+
+data ShapesFile = ShapesFile
+  { drawSpaceTri :: Triangle
+  , robotSpaceTri :: Triangle
+  , paths :: [Path Double Double]
+  } deriving (Generic)
+
+instance ToJSON ShapesFile where
+  toEncoding :: ShapesFile -> Encoding
+  toEncoding = genericToEncoding defaultOptions
+
+instance FromJSON ShapesFile where
+
+toNGon :: (Floating f, Integral i) => i -> i -> V2 f
+toNGon numSides whichPoint = V2 (sin theta) (cos theta)
+  where
+  theta = pi * (0.5 + (fromIntegral whichPoint + 0.5) / fromIntegral numSides)  
+
+exampleFile :: ShapesFile 
+exampleFile = ShapesFile 
+  { drawSpaceTri = V3 (V2 0 0) (toNGon 5 0) (toNGon 5 (-1))
+  , robotSpaceTri = V3 (V2 (sqrt 10) (pi * pi)) (V2 (exp 1) (log 3)) (V2 (-exp (1/pi)) (cos 1))
+  , paths = [Path {trail = toNGon 5 <$> 0 :| [1 .. 4], water = 10.0}]
+  }
