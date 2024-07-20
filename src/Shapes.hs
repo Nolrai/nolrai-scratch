@@ -1,7 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Shapes where
 
@@ -23,7 +22,6 @@ instance FromJSON a => FromJSON (V2 a) where
 instance ToJSON a => ToJSON (V3 a) where
 instance FromJSON a => FromJSON (V3 a) where
 
-
 instance (ToJSON a, ToJSON b) => ToJSON (Path a b) where
   toEncoding :: Path a b-> Encoding
   toEncoding = genericToEncoding defaultOptions
@@ -34,20 +32,6 @@ instance Functor (Path time) where
   fmap f Path{..} = Path {trail = (f <$>) <$> trail, water = water}
 
 type Triangle = V3 (V2 Double)
-
-v2ToV3 :: V2 Double -> V3 Double
-v2ToV3 (V2 x y) = V3 x y 1 
-
-triangleToMatrix :: Triangle -> M33 Double
-triangleToMatrix t = transpose (v2ToV3 <$> t)
-
-toAffine' :: Triangle -> Triangle -> M33 Double
-toAffine' dom cod = triangleToMatrix cod * inv33 (triangleToMatrix dom)
-
-toAffine :: Triangle -> Triangle -> V2 Double -> V2 Double
-toAffine dom cod = \ p -> (m !* v2ToV3 p) ^. _xy
-  where
-  m = toAffine' dom cod
 
 data ShapesFile = ShapesFile
   { drawSpaceTri :: Triangle
