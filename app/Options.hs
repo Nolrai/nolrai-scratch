@@ -1,22 +1,37 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Options where
 
-import Prelude
-import Text.Read (readMaybe)
-import Options.Applicative
 import Data.Char (toLower)
-import Data.List (isPrefixOf, find)
+import Data.List (find, isPrefixOf)
+import Options.Applicative
+  ( InfoMod,
+    Parser,
+    ParserInfo,
+    ReadM,
+    fullDesc,
+    help,
+    info,
+    long,
+    maybeReader,
+    metavar,
+    option,
+    progDesc,
+    short,
+    showDefault,
+    strArgument,
+    value,
+  )
+import Prelude
 
 fullParser :: ParserInfo Options
-fullParser = info optionsParser parserInfoMods 
+fullParser = info optionsParser parserInfoMods
 
-parserInfoMods :: InfoMod Options 
-parserInfoMods 
-  =   fulllDesc
-  <>  progDesc "Convert flowbot shape files into gcode, with other options for debuging."
-
+parserInfoMods :: InfoMod Options
+parserInfoMods =
+  fullDesc
+    <> progDesc "Convert flowbot shape files into gcode, with other options for debuging."
 
 -- the central options parser
 optionsParser :: Parser Options
@@ -24,11 +39,12 @@ optionsParser =
   Options <$> inputFiletypeOpt <*> outputFiletypeOpt <*> inputPathArg <*> outputPathArg
 
 data Options = Options
-  { inputStage :: Stage
-  , outputStage :: Stage
-  , outputPath :: FilePath
-  , inputPath :: FilePath
+  { inputStage :: Stage,
+    outputStage :: Stage,
+    outputPath :: FilePath,
+    inputPath :: FilePath
   }
+  deriving (Eq, Show, Read)
 
 -- What should we process the input output as.
 -- we don't actually handle reading GCodeStage
@@ -36,41 +52,45 @@ data Stage
   = ShapesStage
   | FlowCmdStage
   | GCodeStage
-  deriving (Show, Read)
+  deriving (Eq, Show, Read, Ord)
 
 -- | Parses a 'Stage' from a command-line argument.
 -- Matches the input string with one of the 'Stage' values, ignoring case.
 readStage :: ReadM Stage
 readStage = maybeReader readStage'
   where
-  readStage' :: String -> Maybe Stage
-  readStage' str = find (go str) [ShapesStage, FlowCmdStage, GCodeStage]
-    where
-      go input stage = map toLower input `isPrefixOf` map toLower (show stage)
+    readStage' :: String -> Maybe Stage
+    readStage' str = find (go str) [ShapesStage, FlowCmdStage, GCodeStage]
+      where
+        go input stage = map toLower input `isPrefixOf` map toLower (show stage)
 
 -- | Command-line option parser for the input file type.
 -- Defaults to 'ShapesStage' if no input is provided.
 inputFiletypeOpt :: Parser Stage
-inputFiletypeOpt = option readStage
-  ( long "input"
-  <> short 'i'
-  <> metavar "STAGE"
-  <> value ShapesStage
-  <> showDefault
-  <> help "What format the input is expected in, must be either Shapes or FlowCmd"
-  )
+inputFiletypeOpt =
+  option
+    readStage
+    ( long "input"
+        <> short 'i'
+        <> metavar "STAGE"
+        <> value ShapesStage
+        <> showDefault
+        <> help "What format the input is expected in, must be either Shapes or FlowCmd"
+    )
 
 -- | Command-line option parser for the output file type.
 -- Defaults to 'GCodeStage' if no input is provided.
 outputFiletypeOpt :: Parser Stage
-outputFiletypeOpt = option readStage
-  ( long "output"
-  <> short 'o'
-  <> metavar "STAGE"
-  <> value GCodeStage
-  <> showDefault
-  <> help "What format to output, must be one of Shapes, FlowCmd, or GCode, and must be later than or the same as the input stage"
-  )
+outputFiletypeOpt =
+  option
+    readStage
+    ( long "output"
+        <> short 'o'
+        <> metavar "STAGE"
+        <> value GCodeStage
+        <> showDefault
+        <> help "What format to output, must be one of Shapes, FlowCmd, or GCode, and must be later than or the same as the input stage"
+    )
 
 -- | Command-line argument parser for the output file path.
 -- Defaults to an empty string if no input is provided.

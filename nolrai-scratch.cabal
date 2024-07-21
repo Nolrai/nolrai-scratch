@@ -52,6 +52,7 @@ library
 executable nolrai-scratch
   import: shared-properties
   main-is:          Main.hs
+  other-modules:    Options
 
   -- Modules included in this executable, other than Main.
   -- other-modules:

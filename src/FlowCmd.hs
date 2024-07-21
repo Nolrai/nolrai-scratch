@@ -1,16 +1,18 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module FlowCmd where
+
 import Linear.V2
 import Text.Printf
 
-data FlowCmd 
+data FlowCmd
   = TurnOnWater
   | TurnOffWater
   | Dwell {dwellTime :: Double}
   | MoveFast {target :: V2 Double}
   | MoveAtRate {target :: V2 Double, rate :: Double}
+  deriving (Show, Read)
 
 -- Z is used for water pressure, zmin is off, zmax is on.
 zmax, zmin :: Double
