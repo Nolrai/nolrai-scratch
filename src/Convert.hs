@@ -1,10 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Convert (shapesToFlowCmd) where
+module Convert (shapesToFlowCmd, shapesToGCode) where
 
 import Control.Lens ((^.))
-import Data.List (concatMap)
 import Data.List.NonEmpty hiding (transpose, zipWith)
 import FlowCmd
 import Linear.Matrix
@@ -14,6 +13,7 @@ import Linear.V3
 import Shapes
 
 -- convert a shapes file to a list of GCode commands.
+shapesToGCode :: ShapesFile -> [String]
 shapesToGCode = fmap toGCode . shapesToFlowCmd
 
 -- Consider a point in R^2 as a point on the Z = 1 plain in R^3
@@ -60,10 +60,10 @@ convertPath transformation Path {trail, water} = header ++ body ++ footer
     body =
       case stops of
         [] -> [Dwell water] -- water a dot.
-        stops@(_ : _) ->
+        (_ : _) ->
           -- water a path of lines
-          let rate = length / water
-              length = sum $ zipWith distance (start : stops) stops
+          let rate = pathLength / water
+              pathLength = sum $ zipWith distance (start : stops) stops
               convertLine :: V2 Double -> FlowCmd
               convertLine target = MoveAtRate {target, rate}
            in convertLine <$> stops

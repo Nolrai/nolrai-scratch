@@ -30,8 +30,10 @@ common shared-properties
     , aeson
     , lens
     , bytestring
+    , linear
   ghc-options:
     -Wall
+    -Wno-orphans
 
 library
   import: shared-properties
@@ -45,8 +47,7 @@ library
 
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
-  build-depends:    strict-base
-                  , linear
+  build-depends:    
   hs-source-dirs:   src
 
 executable nolrai-scratch
@@ -75,8 +76,11 @@ test-suite nolrai-scratch-test
   main-is: Spec.hs
   build-depends:  hspec
                 , tasty
+                , tasty-quickcheck
+                , tasty-hspec
                 , QuickCheck
                 , nolrai-scratch
+                , 
   hs-source-dirs:
     test
   default-language: Haskell2010

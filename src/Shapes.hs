@@ -1,6 +1,6 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Shapes where
 
@@ -11,7 +11,7 @@ import Linear.V2
 import Linear.V3
 
 data Path time space = Path {trail :: NonEmpty (V2 space), water :: time}
-  deriving (Generic)
+  deriving (Generic, Functor)
 
 instance (ToJSON a) => ToJSON (V2 a)
 
@@ -26,9 +26,6 @@ instance (ToJSON a, ToJSON b) => ToJSON (Path a b) where
   toEncoding = genericToEncoding defaultOptions
 
 instance (FromJSON a, FromJSON b) => FromJSON (Path a b)
-
-instance Functor (Path time) where
-  fmap f Path {..} = Path {trail = (f <$>) <$> trail, water = water}
 
 type Triangle = V3 (V2 Double)
 

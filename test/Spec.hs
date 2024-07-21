@@ -1,9 +1,13 @@
+{-# LANGUAGE ImportQualifiedPost #-}
+
 module Main (main) where
 
-import Shapes
-import Test.Hspec
-import Test.QuickCheck
-import Test.Tasty
+import ShapesSpec qualified
 
 main :: IO ()
-main = putStrLn ("Tests for " ++ "FlowBot cmdln")
+main = do
+    defaultMain $ do
+    testGroup
+      "All Tests"
+      [ shapesTests
+      ]
