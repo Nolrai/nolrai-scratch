@@ -11,7 +11,7 @@ import Linear.V2
 import Linear.V3
 
 data Path time space = Path {trail :: NonEmpty (V2 space), water :: time}
-  deriving (Generic, Functor)
+  deriving (Generic, Functor, Read, Show, Eq, Ord)
 
 instance (ToJSON a) => ToJSON (V2 a)
 
@@ -34,7 +34,7 @@ data ShapesFile = ShapesFile
     robotSpaceTri :: Triangle,
     paths :: [Path Double Double]
   }
-  deriving (Generic)
+  deriving (Generic, Read, Show, Eq, Ord)
 
 instance ToJSON ShapesFile where
   toEncoding :: ShapesFile -> Encoding
@@ -50,7 +50,7 @@ toNGon numSides whichPoint = V2 (sin theta) (cos theta)
 exampleFile :: ShapesFile
 exampleFile =
   ShapesFile
-    { drawSpaceTri = V3 (V2 0 0) (toNGon 5 0) (toNGon 5 (-1)),
+    { drawSpaceTri = V3 (V2 0 0) (toNGon 5 1) (toNGon 5 2),
       robotSpaceTri = V3 (V2 (sqrt 10) (pi * pi)) (V2 (exp 1) (log 3)) (V2 (-exp (1 / pi)) (cos 1)),
       paths = [Path {trail = toNGon 5 <$> 0 :| [1 .. 4], water = 10.0}]
     }

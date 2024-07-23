@@ -1,12 +1,11 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-
 module Main (main) where
 
-import ShapesSpec qualified
+import ShapesTests
+import Test.Tasty
 
 main :: IO ()
 main = do
-    defaultMain $ do
+  defaultMain $ do
     testGroup
       "All Tests"
       [ shapesTests
