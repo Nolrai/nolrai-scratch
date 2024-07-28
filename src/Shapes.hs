@@ -42,15 +42,15 @@ instance ToJSON ShapesFile where
 
 instance FromJSON ShapesFile
 
-toNGon :: (Floating f) => Int -> Int -> V2 f
-toNGon numSides whichPoint = V2 (sin theta) (cos theta)
+toNGon :: Int -> Int -> V2 Double
+toNGon numSides whichPoint = V2 (cos theta) (sin theta)
   where
-    theta = pi * (0.5 + (fromIntegral whichPoint + 0.5) / fromIntegral numSides)
+    theta = 2 * pi * (fromIntegral whichPoint / fromIntegral numSides)
 
 exampleFile :: ShapesFile
 exampleFile =
   ShapesFile
-    { drawSpaceTri = V3 (V2 0 0) (toNGon 5 1) (toNGon 5 2),
-      robotSpaceTri = V3 (V2 (sqrt 10) (pi * pi)) (V2 (exp 1) (log 3)) (V2 (-exp (1 / pi)) (cos 1)),
+    { drawSpaceTri = V3 (toNGon 3 0) (toNGon 3 1) (toNGon 3 2),
+      robotSpaceTri = V3 (V2 (sqrt 10) (pi * pi)) (V2 (exp 1) (log 3)) (V2 (negate (exp (-pi))) (cos (pi + 1))),
       paths = [Path {trail = toNGon 5 <$> 0 :| [1 .. 4], water = 10.0}]
     }
