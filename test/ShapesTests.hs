@@ -1,30 +1,30 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module ShapesTests (shapesTests) where
+module ShapesTests where
 
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
+import Data.Aeson.Types
 import Data.ByteString.Lazy as BS (null)
-import Data.List as List (all)
+import Data.List as List (all, and)
 import Data.List.NonEmpty as NE (NonEmpty (..))
-import Linear (Metric (qd, quadrance), V2 (..), V3 (V3))
+import Data.Typeable (Proxy (..))
+import Linear (Metric (dot, qd, quadrance), V2 (..), V3 (V3))
 import Shapes
   ( Path (..),
-    ShapesFile (drawSpaceTri, paths, robotSpaceTri),
+    ShapesFile (..),
     exampleFile,
     toNGon,
   )
+import Test.QuickCheck (Arbitrary (arbitrary), Gen, Positive (..))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Golden (goldenVsStringDiff)
-import Test.Tasty.HUnit
-  ( Assertion,
-    assertBool,
-    assertFailure,
-    testCase,
-    (@?=),
-  )
+import Test.Tasty.HUnit (Assertion, assertFailure, testCase)
 import Test.Tasty.QuickCheck as QC
   ( Property,
     testProperty,
@@ -41,17 +41,25 @@ instance ApproxEq Double where
   (~=) :: Double -> Double -> Bool
   a ~= b = (a - b) * (a - b) < eps
 
-instance (Floating a, Metric f, Metric g, Applicative f, Applicative g, Ord a, Num a) => ApproxEq (f (g a)) where
-  (~=) :: f (g a) -> f (g a) -> Bool
+instance ApproxEq (V2 Double) where
+  (~=) :: V2 Double -> V2 Double -> Bool
+  a ~= b = qd a b < eps
+
+instance
+  {-# OVERLAPPABLE #-}
+  (Floating a, Metric g, Applicative g, Ord a, Num a) =>
+  ApproxEq (V3 (g a))
+  where
+  (~=) :: V3 (g a) -> V3 (g a) -> Bool
   a ~= b = quadrance (qd <$> a <*> b) < eps
 
-instance (ApproxEq a) => ApproxEq [a] where
+instance {-# OVERLAPPING #-} (ApproxEq a) => ApproxEq [a] where
   (x : xs) ~= (y : ys) = x ~= y && xs ~= ys
   [] ~= [] = True
   [] ~= (_ : _) = False
   (_ : _) ~= [] = False
 
-instance (ApproxEq a) => ApproxEq (NonEmpty a) where
+instance {-# OVERLAPPING #-} (ApproxEq a) => ApproxEq (NonEmpty a) where
   (~=) :: NonEmpty a -> NonEmpty a -> Bool
   (x :| xs) ~= (y :| ys) = x ~= y && (xs ~= ys)
 
@@ -59,9 +67,16 @@ on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 f `on` g = \x y -> f (g x) (g y)
 
 instance ApproxEq ShapesFile where
+  (~=) :: ShapesFile -> ShapesFile -> Bool
   a ~= b =
     ((~=) `on` drawSpaceTri) a b
       && ((~=) `on` robotSpaceTri) a b
+
+instance (ApproxEq a, ApproxEq (V2 b)) => ApproxEq (Path a b) where
+  (~=) :: Path a b -> Path a b -> Bool
+  a ~= b =
+    ((~=) `on` trail) a b
+      && ((~=) `on` water) a b
 
 (~@?=) :: (ApproxEq a, Show a) => a -> a -> Assertion
 actual ~@?= expected =
@@ -75,9 +90,9 @@ shapesTests =
     "Shapes Tests"
     [ exampleFileTests,
       toNGonTests,
-      shapesFileJsonTests,
-      goldenTests,
-      pathJsonTests
+      jsonTests (Proxy :: Proxy ShapesFile),
+      jsonTests (Proxy :: Proxy (Path Double Double)),
+      goldenTests
     ]
 
 exampleFileTests :: TestTree
@@ -86,7 +101,7 @@ exampleFileTests =
     "exampleFile"
     [ testCase "has the correct drawSpaceTri" $ drawSpaceTri exampleFile ~@?= expectedDrawSpaceTri,
       testCase "has the correct robotSpaceTri" $ robotSpaceTri exampleFile ~@?= expectedRobotSpaceTri,
-      testCase "has the correct paths" $ paths exampleFile @?= [expectedPath]
+      testCase "has the correct paths" $ paths exampleFile ~@?= [expectedPath]
     ]
   where
     expectedDrawSpaceTri =
@@ -102,10 +117,11 @@ exampleFileTests =
     expectedPath =
       Path
         { trail =
-            V2 0.587785 0.809016
-              :| [ V2 0.951056 0.309016,
-                   V2 0.951056 (-0.309016),
-                   V2 0.587785 (-0.809016)
+            V2 1.0 0.0
+              :| [ V2 0.30901699437494745 0.9510565162951535,
+                   V2 (-0.8090169943749473) 0.5877852522924732,
+                   V2 (-0.8090169943749476) (-0.587785252292473),
+                   V2 0.30901699437494723 (-0.9510565162951536)
                  ],
           water = 10.0
         }
@@ -115,27 +131,42 @@ toNGonTests =
   testGroup
     "toNGon"
     [ testCase "returns the correct points for a triangle" $ do
-        toNGon 3 0 @?= (V2 0.8660254037844386 0.5 :: V2 Double)
-        toNGon 3 1 @?= (V2 (-0.8660254037844384) 0.5 :: V2 Double)
-        toNGon 3 2 @?= (V2 0 (-1.0) :: V2 Double),
+        toNGon 3 0 ~@?= (V2 1 0 :: V2 Double)
+        toNGon 3 1 ~@?= (V2 (-0.5) (sqrt 3 / 2) :: V2 Double)
+        toNGon 3 2 ~@?= (V2 (-0.5) (-sqrt 3 / 2) :: V2 Double),
       testCase "returns the correct points for a pentagon" $ do
-        toNGon 5 0 @?= (V2 0.5877852522924731 0.8090169943749475 :: V2 Double)
-        toNGon 5 1 @?= (V2 0.9510565162951535 0.30901699437494745 :: V2 Double)
-        toNGon 5 2 @?= (V2 0.9510565162951536 (-0.30901699437494734) :: V2 Double)
-        toNGon 5 3 @?= (V2 0.5877852522924732 (-0.8090169943749473) :: V2 Double)
-        toNGon 5 4 @?= (V2 6.123233995736766e-17 (-1.0) :: V2 Double),
+        toNGon 5 0 ~@?= (V2 1 0 :: V2 Double)
+        toNGon 5 1 ~@?= (V2 (cos (2 * pi / 5)) (sin (2 * pi / 5)) :: V2 Double)
+        toNGon 5 2 ~@?= (V2 (cos (4 * pi / 5)) (sin (4 * pi / 5)) :: V2 Double)
+        toNGon 5 3 ~@?= (V2 (cos (6 * pi / 5)) (sin (6 * pi / 5)) :: V2 Double)
+        toNGon 5 4 ~@?= (V2 (cos (8 * pi / 5)) (sin (8 * pi / 5)) :: V2 Double),
       testCase "returns the correct points for a hexagon" $ do
-        toNGon 6 0 @?= (V2 0.8660254037844386 0.5 :: V2 Double)
-        toNGon 6 1 @?= (V2 0.49999999999999994 0.8660254037844386 :: V2 Double)
-        toNGon 6 2 @?= (V2 (-0.16666666666666674) 0.9660254037844386 :: V2 Double)
-        toNGon 6 3 @?= (V2 (-0.6666666666666667) 0.5 :: V2 Double)
-        toNGon 6 4 @?= (V2 (-0.6666666666666667) (-0.5) :: V2 Double)
-        toNGon 6 5 @?= (V2 (-0.1666666666666668) (-0.9660254037844385) :: V2 Double),
-      QC.testProperty "toNGon produces points on the unit circle" prop_toNGonUnitCircle
+        toNGon 6 0 ~@?= (V2 1 0 :: V2 Double)
+        toNGon 6 1 ~@?= (V2 (cos (pi / 3)) (sin (pi / 3)) :: V2 Double)
+        toNGon 6 2 ~@?= (V2 (cos (2 * pi / 3)) (sin (2 * pi / 3)) :: V2 Double)
+        toNGon 6 3 ~@?= (V2 (cos pi) (sin pi) :: V2 Double)
+        toNGon 6 4 ~@?= (V2 (cos (4 * pi / 3)) (sin (4 * pi / 3)) :: V2 Double)
+        toNGon 6 5 ~@?= (V2 (cos (5 * pi / 3)) (sin (5 * pi / 3)) :: V2 Double),
+      QC.testProperty "toNGon produces points on the unit circle" prop_toNGonUnitCircle,
+      QC.testProperty "toNGon points have correct dot products" prop_toNGonAngle,
+      QC.testProperty "toNGon points sum to 0" prop_toNGonSum
     ]
 
-prop_toNGonUnitCircle :: Int -> Property
-prop_toNGonUnitCircle n = n > 2 ==> List.all (\i -> let V2 x y = toNGon n i in abs (sqrt (x * x + y * y) - 1) < 1e-10) [0 .. n - 1]
+prop_toNGonUnitCircle :: Positive Int -> Property
+prop_toNGonUnitCircle (Positive n) = n > 2 ==> List.all (\i -> let V2 x y = toNGon n i in (sqrt (x * x + y * y) ~= 1)) [0 .. n - 1]
+
+prop_toNGonAngle :: Positive Int -> Property
+prop_toNGonAngle (Positive n) = n > 2 ==>
+  List.and $
+    do
+      (x :: Int) <- [0 .. n - 1]
+      (y :: Int) <- [0 .. n - 1]
+      let sides = x - y
+      let (theta :: Double) = 2 * pi * fromIntegral sides / fromIntegral n
+      pure $ (toNGon n x `dot` toNGon n y) ~= cos theta :: [Bool]
+
+prop_toNGonSum :: Positive Int -> Property
+prop_toNGonSum (Positive n) = n > 2 ==> sum (toNGon n <$> [0 .. n - 1]) ~= V2 0 0
 
 goldenTests :: TestTree
 goldenTests =
@@ -148,29 +179,33 @@ goldenTests =
         (pure $ encode exampleFile)
     ]
 
-shapesFileJsonTests :: TestTree
-shapesFileJsonTests =
-  testGroup
-    "ShapesFile JSON serialization"
-    [ testCase "encodes ShapesFile to JSON" $ do
-        let json = encode exampleFile
-        assertBool "encode should never produce empty json" (not $ BS.null json),
-      testCase "decodes ShapesFile from JSON" $ do
-        let json = encode exampleFile
-        decode json @?= Just exampleFile
-    ]
+instance (Arbitrary a) => Arbitrary (NonEmpty a) where
+  arbitrary :: Gen (NonEmpty a)
+  arbitrary = (:|) <$> arbitrary <*> arbitrary
 
-simplePath :: Path Double Double
-simplePath = Path {trail = V2 0 0 :| [V2 1 1], water = 10.0}
+instance (Arbitrary a) => Arbitrary (V2 a) where
+  arbitrary = V2 <$> arbitrary <*> arbitrary
 
-pathJsonTests :: TestTree
-pathJsonTests =
+instance (Arbitrary a) => Arbitrary (V3 a) where
+  arbitrary :: Gen (V3 a)
+  arbitrary = V3 <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Path a b) where
+  arbitrary :: Gen (Path a b)
+  arbitrary = Path <$> arbitrary <*> arbitrary
+
+instance Arbitrary ShapesFile where
+  arbitrary :: Gen ShapesFile
+  arbitrary = do
+    drawSpaceTri <- arbitrary
+    robotSpaceTri <- arbitrary
+    paths <- arbitrary
+    pure (ShapesFile {..})
+
+jsonTests :: forall a. (Show a, Arbitrary a, Eq a, FromJSON a, ToJSON a) => Proxy a -> TestTree
+jsonTests a =
   testGroup
-    "Path JSON serialization"
-    [ testCase "encodes Path to JSON" $ do
-        let json = encode simplePath
-        assertBool "encode should never produce empty json" (not $ BS.null json),
-      testCase "decodes Path from JSON" $ do
-        let json = encode simplePath
-        decode json @?= Just simplePath
+    (show a <> " JSON serialization")
+    [ QC.testProperty "encode should never produce empty json" $ \(x :: a) -> not . BS.null $ encode x,
+      QC.testProperty ("decodes " <> show a <> " from JSON") $ \(x :: a) -> (decode (encode x) :: Maybe a) == Just x
     ]
