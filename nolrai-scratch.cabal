@@ -25,7 +25,7 @@ extra-source-files:
 
 library
     exposed-modules:
-        Shapes
+        QSpice
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -33,14 +33,14 @@ library
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base
-                    , strict-base
-                    , linear
-                    , aeson
                     , lens
+                    , megaparsec
+                    , utf8-string
+                    , bytestring
     hs-source-dirs:   src
     default-language: Haskell2010
 
-executable nolrai-scratch
+executable qspice-reader
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
@@ -49,10 +49,29 @@ executable nolrai-scratch
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base
-                    , aeson
                     , containers
                     , nolrai-scratch
                     , bytestring
-                    , aeson-pretty
+                    , utf8-string
+                    , megaparsec
+    ghc-options:
+      -O2
+      -threaded
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
+    
+executable qspice-reader-prof
+    main-is:          Main.hs
+    build-depends:    base
+                    , containers
+                    , nolrai-scratch
+                    , bytestring
+                    , megaparsec
+                    , utf8-string
+    ghc-options:
+      -O2
+      -threaded
+      "-with-rtsopts=-N -p -s -hy -i0.1 -l-agu"
     hs-source-dirs:   app
     default-language: Haskell2010

@@ -1,19 +1,22 @@
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
 
-import Prelude
-import Data.Map ()
-import Data.List as List ( drop, sort )
-import Control.Monad ( guard )
-import Text.Read (readMaybe)
+import Control.Monad (guard)
+import Data.ByteString.Char8 qualified as BS
+import QSpice
 import System.Environment (getArgs)
-import Data.ByteString.Lazy as BS
-import Data.Aeson
-import Shapes
-import Data.Aeson.Encode.Pretty
+import System.Exit (die, exitSuccess)
+import Text.Megaparsec
+import Prelude
 
 main :: IO ()
 main = do
-  BS.putStr $ encodePretty exampleFile <> "\n"
+  [path] <- getArgs
+  fileContents <- BS.readFile path
+  putStrLn $ "length of file = " <> show (BS.length fileContents)
+  case parse schematicFile path fileContents of
+    Left err -> die $ show err
+    Right raw -> writeFile "out.txt" (show raw)
+  exitSuccess
