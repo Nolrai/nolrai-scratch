@@ -54,6 +54,7 @@ executable qspice-reader
                     , bytestring
                     , utf8-string
                     , megaparsec
+                    , lens
     ghc-options:
       -O2
       -threaded
@@ -69,6 +70,7 @@ executable qspice-reader-prof
                     , bytestring
                     , megaparsec
                     , utf8-string
+                    , lens
     ghc-options:
       -O2
       -threaded
