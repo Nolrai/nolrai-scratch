@@ -37,6 +37,7 @@ library
                     , megaparsec
                     , utf8-string
                     , bytestring
+                    , text
     hs-source-dirs:   src
     default-language: Haskell2010
 
@@ -55,6 +56,9 @@ executable qspice-reader
                     , utf8-string
                     , megaparsec
                     , lens
+                    , directory
+                    , text
+                    , binary
     ghc-options:
       -O2
       -threaded
@@ -71,6 +75,9 @@ executable qspice-reader-prof
                     , megaparsec
                     , utf8-string
                     , lens
+                    , directory
+                    , text
+                    , binary
     ghc-options:
       -O2
       -threaded

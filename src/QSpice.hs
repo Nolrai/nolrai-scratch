@@ -20,6 +20,8 @@ import GHC.Word (Word8)
 import Text.Megaparsec
 import Text.Megaparsec.Byte
 import Text.Megaparsec.Byte.Lexer qualified as L
+import Data.Text
+import Linear.V2
 
 type Parser = Parsec () ByteString
 
@@ -32,6 +34,7 @@ instance ShowErrorComponent () where
 data Raw = Raw
   { rawName :: ByteString,
     rawArgs :: [ByteString],
+    lable :: Text,
     rawProperties :: [Property],
     rawContents :: [Raw]
   }
@@ -101,11 +104,18 @@ parseRaw = do
 parseName :: Parser ByteString
 parseName = label "name" $ lexeme name'
 
-untilAngle :: ParsecT () ByteString Identity (Tokens ByteString)
-untilAngle = takeWhileP (Just "arguments") (not . isAngleChar)
-
 argList :: Parser [ByteString]
-argList = BS.split (fromIntegral $ ord ' ') <$> untilAngle
+argList = many (lexeme parseArg)
+
+data Arg 
+  = Pos (V2 Double)
+  | Value Double
+  | Label Text
+  | Ident ByteString
+  | Image ByteString
+
+parseArg =
+  parsePos <|> parseValue <|> parseLable <|> parse
 
 angleList :: Parser ([Property], [Raw])
 angleList = partitionEithers <$> many angleItem
