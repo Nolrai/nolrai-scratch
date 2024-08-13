@@ -49,7 +49,7 @@ onSchematicFile filename = do
       BS.hPutStrLn stderr "Errors:"
       BS.hPutStrLn stderr . BS.pack . errorBundlePretty $ err
       pure Set.empty
-    Right raw -> pure $ getNames raw
+    Right schematic -> pure Set.empty
 
 getNames :: Raw -> Set BS.ByteString
 getNames r = (r ^. name) `Set.insert` foldMap getNames (r ^. contents)
